@@ -19,7 +19,7 @@ import yelp.YelpAPI;
 public class MySQLDBConnection implements DBConnection {
 
 	private Connection conn = null;
-	private static final int MAX_RECOMMENDED_RESTAURANTS = 10;
+	private static final int MAX_RECOMMENDED_RESTAURANTS = 15;
 
 	public MySQLDBConnection() {
 		this(DBUtil.URL);
@@ -126,49 +126,76 @@ public class MySQLDBConnection implements DBConnection {
 		return null;
 
 	}
-
+	
+	//recommend by visited history
 	@Override
-	public JSONArray recommendRestaurants(String userId) {
-		try {
-			if (conn == null) {
+	public JSONArray recommendRestaurants(String userId){
+		try{
+			if(conn == null){
 				return null;
 			}
-
+			
 			Set<String> visitedRestaurants = getVisitedRestaurants(userId);
-																			 
-			Set<String> allCategories = new HashSet<>();//first get all categories the user visited
-			for (String restaurant : visitedRestaurants) {
-				allCategories.addAll(getCategories(restaurant));
-			}
 			
-			Set<String> allRestaurants = new HashSet<>();//second get all restaurants that in the categories
-			for (String category : allCategories) {
-				Set<String> set = getBusinessId(category);
-				allRestaurants.addAll(set);
-			}
+			//contains how many times a category appears
+			HashMap<String, Integer> categories = new HashMap<String, Integer>();
 			
-			Set<JSONObject> diff = new HashSet<>();// get all restaurants in the categories that not visited
-			int count = 0;
-			for (String businessId : allRestaurants) {
-				// Perform filtering
-				if (!visitedRestaurants.contains(businessId)) {
-					diff.add(getRestaurantsById(businessId, false));
-					count++;
-					if (count >= MAX_RECOMMENDED_RESTAURANTS) {
-						break;
+			for(String rest : visitedRestaurants){
+				Set<String>curCategories = getCategories(rest);
+				for(String cate : curCategories){
+					if(!categories.containsKey(cate)){
+						categories.put(cate, 1);
+					}else{
+						categories.put(cate, categories.get(cate) + 1);
 					}
 				}
 			}
-			System.out.print(diff.size());
 			
-			return new JSONArray(diff);
-		} catch (Exception e) {
+			//sort the categories by appearance
+			List<Map.Entry> rankedCategories = new LinkedList<Map.Entry>();
+			for(Map.Entry entry : categories.entrySet()){
+				rankedCategories.add(entry);
+			}
+			Collections.sort(rankedCategories, new Comparator<Map.Entry>(){
+				@Override
+				public int compare(Map.Entry e1, Map.Entry e2){
+					Integer v1 = (Integer)e1.getValue();
+					Integer v2 = (Integer)e2.getValue();
+					return v1 > v2 ? -1 : ((v1 < v2) ? 1 : 0);
+				}
+			});
+			
+			Set<String> recommendSet = new HashSet<String>();
+			boolean foundEnough = false;
+			
+			//get restaurants by sorted category
+			for(Map.Entry entry : rankedCategories){
+				String category = (String)entry.getKey();
+				Set<String> restOfCurCategory = getBusinessId(category);
+				
+				for (String restaurantId : restOfCurCategory) {
+					// Perform filtering
+					if (!visitedRestaurants.contains(restaurantId) && !recommendSet.contains(restaurantId)) {
+						recommendSet.add(restaurantId);
+						if (recommendSet.size() >= MAX_RECOMMENDED_RESTAURANTS) {
+							foundEnough = true;
+							break;
+						}
+					}
+				}
+				if(foundEnough){
+					break;
+				}
+			}
+			System.out.println("recommendation!");
+			return new JSONArray(recommendSet);
+			
+		}catch(Exception e){
 			System.out.println(e.getMessage());
 		}
 		return null;
-
 	}
-
+	
 	@Override
 	public Set<String> getCategories(String businessId) {
 		try{
