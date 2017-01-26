@@ -2,8 +2,8 @@
 
 var user_id       = '',// matches with user_id from database user table
  	user_fullname = '',
- 	lng           = -122.08,
- 	lat           = 37.38;
+ 	lng           = -130.18,
+ 	lat           = 27.28;
 
 /**
  * Initialize
@@ -16,11 +16,7 @@ function init() {
   $('recommend-btn').addEventListener('click', loadRecommendedRestaurants);
   
   validateSession();
-  
-//  onSessionValid({
-//	  user_id: '1111',
-//	  name: 'John Smith'
-//  });
+
 }
 
 /**
@@ -364,7 +360,6 @@ function loadRecommendedRestaurants() {
 /**
  * API #4
  * Toggle favorite (or visited) restaurants
- * 
  * @param business_id - The restaurant business id
  * 
  * API end point: [POST]/[DELETE] /Dashi/history
@@ -489,7 +484,5 @@ function addRestaurant(restaurantList, restaurant) {
 }
 
 init();
-
 })();
 
-// END
